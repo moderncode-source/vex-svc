@@ -1,0 +1,11 @@
+.envrc
+.direnv/
+default.nix
+
+.venv/
+__pycache__/
+
+.dockerignore
+.gitignore
+
+Dockerfile
