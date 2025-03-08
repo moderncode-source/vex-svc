@@ -1,0 +1,8 @@
+.envrc
+.direnv/
+default.nix
+
+.gitignore
+.dockerignore
+
+Dockerfile
