@@ -1,0 +1,16 @@
+# This persistent volume declaration is for testing purposes only
+# on a single-node cluster. `hostPath` property below will emulate
+# network-attached storage.
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: registry-pv
+  namespace: default
+spec:
+  storageClassName: manual
+  accessModes:
+  - ReadWriteOnce
+  capacity:
+    storage: 1Gi
+  hostPath:
+    path: /tmp/registry/
