@@ -1,0 +1,4 @@
+# Local environment configuration files
+.env
+.envrc
+.direnv
