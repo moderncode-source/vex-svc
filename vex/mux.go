@@ -20,7 +20,14 @@ var ServiceMux = &serviceMux
 
 var serviceMux http.ServeMux
 
+const (
+	// HealthEndpoint is an endpoint pattern that matches request of
+	// any type to /healthz to [HealthHandler].
+	HealthEndpoint = "/healthz"
+)
+
 func init() {
-	// Request handlers for the default [serviceMux].
-	serviceMux.HandleFunc("/healthz", HealthHandler)
+	// Register request handlers for the default [serviceMux].
+
+	serviceMux.HandleFunc(HealthEndpoint, HealthHandler)
 }
