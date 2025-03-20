@@ -69,15 +69,17 @@ func NewWithHandler(addr string, handler http.Handler) *Service {
 }
 
 func (svc *Service) Start() error {
-	if err := svc.server.ListenAndServe(); err != nil {
-		return fmt.Errorf("failed to serve service: %v", err)
+	err := svc.server.ListenAndServe()
+	if err == nil || err == http.ErrServerClosed {
+		return nil
 	}
-	return nil
+	return fmt.Errorf("failed to serve service: %v", err)
 }
 
 func (svc *Service) Stop(ctx context.Context) error {
-	if err := svc.server.Shutdown(ctx); err != nil {
-		return fmt.Errorf("failed to stop service: %v", err)
+	err := svc.server.Shutdown(ctx)
+	if err == nil || err == http.ErrServerClosed {
+		return nil
 	}
-	return nil
+	return fmt.Errorf("failed to stop service: %v", err)
 }
