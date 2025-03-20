@@ -14,6 +14,7 @@ package vex
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net"
 	"net/http"
@@ -41,6 +42,10 @@ const (
 	// indefinitely for clients that never close connections.
 	serverMaxConnections = 50
 )
+
+// ErrNilServer is returned by [Service.Start] and [Service.Stop] if
+// service's server is nil.
+var ErrNilServer = errors.New("service's server must not be nil")
 
 // Service defines parameters and provides functionality to run a Vex service.
 // Use [New] to create a new valid service instance.
@@ -85,7 +90,10 @@ func NewWithHandler(addr string, handler http.Handler) *Service {
 // Start begins listening to and serving incoming requests to the service
 // on the configured network address. Call [Service.Stop] to stop serving.
 func (svc *Service) Start() error {
-	err := svc.server.ListenAndServe()
+	if svc.server == nil {
+		return ErrNilServer
+	}
+
 	l, err := net.Listen("tcp", svc.server.Addr)
 	if err != nil {
 		return fmt.Errorf("failed to start service: %v", err)
@@ -103,6 +111,10 @@ func (svc *Service) Start() error {
 
 // Stop gracefully shuts down the service. See [http.Server.Shutdown].
 func (svc *Service) Stop(ctx context.Context) error {
+	if svc.server == nil {
+		return ErrNilServer
+	}
+
 	err := svc.server.Shutdown(ctx)
 	if err == nil || err == http.ErrServerClosed {
 		return nil
