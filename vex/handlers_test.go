@@ -57,3 +57,23 @@ func TestHealthHandler(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func TestReadyHandler(t *testing.T) {
+	const url = mockURL + vex.ReadyEndpoint
+
+	ctx := context.Background()
+
+	if err := checkHandlerResponseCode(
+		ctx, http.HandlerFunc(vex.ReadyHandler),
+		http.StatusOK, http.MethodGet, url,
+	); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := checkHandlerResponseCode(
+		ctx, http.HandlerFunc(vex.ReadyHandler),
+		http.StatusMethodNotAllowed, http.MethodPost, url,
+	); err != nil {
+		t.Fatal(err)
+	}
+}

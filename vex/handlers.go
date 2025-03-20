@@ -23,3 +23,13 @@ func HealthHandler(w http.ResponseWriter, req *http.Request) {
 	}
 	w.WriteHeader(http.StatusOK)
 }
+
+// ReadyHandler handles requests to service readiness probe endpoint that can
+// be used to check whether the server is ready to receive traffic.
+func ReadyHandler(w http.ResponseWriter, req *http.Request) {
+	if len(req.Method) != 0 && req.Method != http.MethodGet {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+	w.WriteHeader(http.StatusOK)
+}

@@ -24,10 +24,21 @@ const (
 	// HealthEndpoint is an endpoint pattern that matches request of
 	// any type to /healthz to [HealthHandler].
 	HealthEndpoint = "/healthz"
+
+	// ReadyEndpoint is an endpoint pattern that matches request of
+	// any type to /v1/sys/ready to [ReadyHandler].
+	ReadyEndpoint = "/v1/sys/ready"
 )
 
 func init() {
 	// Register request handlers for the default [serviceMux].
 
 	serviceMux.HandleFunc(HealthEndpoint, HealthHandler)
+
+	// Request handlers for [serviceMux] below start with "/v1/".
+	//
+	// We could instead create another mux with a handler wrapped in
+	// [http.StripPrefix] to make endpoint patterns shorter, but, since there
+	// is a small total number of endpoints, it is unnecessary.
+	serviceMux.HandleFunc(ReadyEndpoint, ReadyHandler)
 }
