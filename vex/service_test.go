@@ -23,9 +23,10 @@ import (
 )
 
 func TestNew(t *testing.T) {
-	// TODO: use httptest.NewRequestWithContext().
+	const addr = ":8080"
+	const url = "http://localhost" + addr
 
-	svc := vex.New(":8080")
+	svc := vex.New(addr)
 	var wg sync.WaitGroup
 
 	// Give the entire operation with the service to complete within 1 second.
@@ -47,25 +48,36 @@ func TestNew(t *testing.T) {
 		wg.Done()
 	}()
 
-	url := "http://localhost:8080/healthz"
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
-	if err != nil {
-		t.Fatalf("Failed to create request: %s", err)
-	}
-
+	var err error
+	var req *http.Request
 	cli := &http.Client{}
-	resp, err := cli.Do(req)
-	if err != nil {
-		t.Fatalf("Request returned error: %s", err)
-	}
 
-	if resp.StatusCode != 200 {
-		t.Fatalf("Expected response code 200, got: %d", resp.StatusCode)
-	}
+	do := func(method, url string, wantStatus int) {
+		t.Logf("Testing request to %s %s", method, url)
 
-	defer func() {
-		if err := resp.Body.Close(); err != nil {
-			t.Logf("Failed to close response body: %s", err)
+		req, err = http.NewRequestWithContext(ctx, method, url, nil)
+		if err != nil {
+			t.Fatalf("Failed to create request: %s", err)
 		}
-	}()
+
+		resp, err := cli.Do(req)
+		if err != nil {
+			t.Fatalf("Request returned error: %s", err)
+		}
+
+		defer func() {
+			if err := resp.Body.Close(); err != nil {
+				t.Logf("Failed to close response body: %s", err)
+			}
+		}()
+
+		if resp.StatusCode != wantStatus {
+			t.Fatalf("Expected response code %d, got: %d", wantStatus, resp.StatusCode)
+		}
+	}
+
+	// Default Vex service should at least respond to liveness and
+	// readiness probe endpoints with 200 OK.
+	do(http.MethodGet, url+vex.HealthEndpoint, http.StatusOK)
+	do(http.MethodGet, url+vex.ReadyEndpoint, http.StatusOK)
 }
