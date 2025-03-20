@@ -8,19 +8,14 @@
 // option. You may not use this file except in compliance with the
 // terms of those licenses.
 
-// Vex HTTP request multiplexer. See [http.ServeMux].
+// Vex HTTP request handlers.
 
 package vex
 
 import "net/http"
 
-// ServiceMux is the default [http.ServeMux] used by [Service] with
-// all handle functions automatically registered.
-var ServiceMux = &serviceMux
-
-var serviceMux http.ServeMux
-
-func init() {
-	// Request handlers for the default [serviceMux].
-	serviceMux.HandleFunc("/healthz", healthHandler)
+// healthHandler handles /healthz server endpoint. Used as a liveness probe
+// during deployment to check whether the server is even running.
+func healthHandler(w http.ResponseWriter, _ *http.Request) {
+	w.WriteHeader(http.StatusOK)
 }
