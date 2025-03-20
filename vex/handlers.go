@@ -14,8 +14,12 @@ package vex
 
 import "net/http"
 
-// HealthHandler handles /healthz server endpoint. Used as a liveness probe
-// during deployment to check whether the server is even running.
-func HealthHandler(w http.ResponseWriter, _ *http.Request) {
+// HealthHandler handles requests to service liveness probe endpoint that can
+// be used to check whether the server is running.
+func HealthHandler(w http.ResponseWriter, req *http.Request) {
+	if len(req.Method) != 0 && req.Method != http.MethodGet {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
 	w.WriteHeader(http.StatusOK)
 }
