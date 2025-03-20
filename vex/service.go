@@ -15,8 +15,11 @@ package vex
 import (
 	"context"
 	"fmt"
+	"net"
 	"net/http"
 	"time"
+
+	"golang.org/x/net/netutil"
 )
 
 // Vex major, minor, and patch version numbers.
@@ -26,10 +29,21 @@ const (
 	VersionPatch = 1
 )
 
-// Block clients from keeping connections open forever by setting
-// a deadline for reading request headers. See [http.Server].
-const serverReadHeaderTimeout = 10 * time.Second
+const (
+	// Block clients from keeping connections open forever by setting a
+	// deadline for reading request headers (effectively, connection's read
+	// deadline, see [http.Server]).
+	serverReadHeaderTimeout = 10 * time.Second
 
+	// Maximum concurrent TCP connections that a server can accept.
+	// We calculate it as: anticipated Request Rate * Request Duration.
+	// Coupled together with [serverReadHeaderTimeout] to avoid waiting
+	// indefinitely for clients that never close connections.
+	serverMaxConnections = 50
+)
+
+// Service defines parameters and provides functionality to run a Vex service.
+// Use [New] to create a new valid service instance.
 type Service struct {
 	server *http.Server
 }
@@ -68,14 +82,26 @@ func NewWithHandler(addr string, handler http.Handler) *Service {
 	}
 }
 
+// Start begins listening to and serving incoming requests to the service
+// on the configured network address. Call [Service.Stop] to stop serving.
 func (svc *Service) Start() error {
 	err := svc.server.ListenAndServe()
+	l, err := net.Listen("tcp", svc.server.Addr)
+	if err != nil {
+		return fmt.Errorf("failed to start service: %v", err)
+	}
+
+	// Limit the number of concurrent connections to the service.
+	ln := netutil.LimitListener(l, serverMaxConnections)
+
+	err = svc.server.Serve(ln)
 	if err == nil || err == http.ErrServerClosed {
 		return nil
 	}
 	return fmt.Errorf("failed to serve service: %v", err)
 }
 
+// Stop gracefully shuts down the service. See [http.Server.Shutdown].
 func (svc *Service) Stop(ctx context.Context) error {
 	err := svc.server.Shutdown(ctx)
 	if err == nil || err == http.ErrServerClosed {
