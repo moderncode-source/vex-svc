@@ -14,6 +14,7 @@ package vex_test
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -21,22 +22,38 @@ import (
 	"github.com/moderncode-source/vex-svc/vex"
 )
 
-func TestHealthHandler(t *testing.T) {
-	url := "http://localhost:8080/healthz"
-	req := httptest.NewRequestWithContext(context.Background(), "", url, nil)
+const mockURL = "http://localhost:8080"
+
+func checkHandlerResponseCode(
+	ctx context.Context, handler http.Handler, want int, method, url string,
+) error {
 	res := httptest.NewRecorder()
+	req := httptest.NewRequestWithContext(ctx, method, url, nil)
 
-	vex.HealthHandler(res, req)
-
-	want := 200
-
-	req.Method = http.MethodGet
+	handler.ServeHTTP(res, req)
 	if res.Code != want {
-		t.Fatalf("Expected response code %d, got %d", want, res.Code)
+		return fmt.Errorf("Expected response code %d, got %d", want, res.Code)
 	}
 
-	req.Method = http.MethodPost
-	if res.Code != want {
-		t.Fatalf("Expected response code %d, got %d", want, res.Code)
+	return nil
+}
+
+func TestHealthHandler(t *testing.T) {
+	const url = mockURL + vex.HealthEndpoint
+
+	ctx := context.Background()
+
+	if err := checkHandlerResponseCode(
+		ctx, http.HandlerFunc(vex.HealthHandler),
+		http.StatusOK, http.MethodGet, url,
+	); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := checkHandlerResponseCode(
+		ctx, http.HandlerFunc(vex.HealthHandler),
+		http.StatusMethodNotAllowed, http.MethodPost, url,
+	); err != nil {
+		t.Fatal(err)
 	}
 }
