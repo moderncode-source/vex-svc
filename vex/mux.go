@@ -22,5 +22,5 @@ var serviceMux http.ServeMux
 
 func init() {
 	// Request handlers for the default [serviceMux].
-	serviceMux.HandleFunc("/healthz", healthHandler)
+	serviceMux.HandleFunc("/healthz", HealthHandler)
 }
