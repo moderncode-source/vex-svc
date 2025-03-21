@@ -12,7 +12,10 @@
 
 package vex
 
-import "net/http"
+import (
+	"encoding/json" // TODO: consider using a faster alternative.
+	"net/http"
+)
 
 // HealthHandler handles requests to service liveness probe endpoint that can
 // be used to check whether the server is running.
@@ -31,5 +34,38 @@ func ReadyHandler(w http.ResponseWriter, req *http.Request) {
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		return
 	}
+	w.WriteHeader(http.StatusOK)
+}
+
+// PostQueueHandler handles requests that
+// post a new item into the submission queue.
+func PostQueueHandler(w http.ResponseWriter, req *http.Request) {
+	if req.Method != http.MethodPost {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+
+	// TODO: respect Accept header value.
+	//       Maybe they only want to receive a json response.
+
+	// TODO: be more lenient here. Assume json if content-type is not set,
+	//       accept "application/json; charset=utf-8", and try to decode
+	//       "text/plain" into [Submission] too.
+	if req.Header.Get("Content-Type") != "application/json" {
+		w.WriteHeader(http.StatusUnsupportedMediaType)
+		return
+	}
+
+	// Decode request body into a [Submission].
+	var submission Submission
+	decoder := json.NewDecoder(req.Body)
+	if err := decoder.Decode(&submission); err != nil {
+        // TODO: consider responding with the decoding error message here.
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	// TODO: replace queue with a proper construct.
+	queue = append(queue, submission)
 	w.WriteHeader(http.StatusOK)
 }

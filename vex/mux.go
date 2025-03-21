@@ -28,6 +28,10 @@ const (
 	// ReadyEndpoint is an endpoint pattern that matches request of
 	// any type to /v1/sys/ready to [ReadyHandler].
 	ReadyEndpoint = "/v1/sys/ready"
+
+	// PostQueueEndpoint is an endpoint pattern that matches POST requests to
+	// /v1/queue to [PostQueueHandler] handler.
+	PostQueueEndpoint = "POST /v1/queue/"
 )
 
 func init() {
@@ -41,4 +45,7 @@ func init() {
 	// [http.StripPrefix] to make endpoint patterns shorter, but, since there
 	// is a small total number of endpoints, it is unnecessary.
 	serviceMux.HandleFunc(ReadyEndpoint, ReadyHandler)
+
+	// Submission queue GET/POST handlers.
+	serviceMux.HandleFunc(PostQueueEndpoint, PostQueueHandler)
 }
