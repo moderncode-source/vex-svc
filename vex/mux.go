@@ -32,6 +32,10 @@ const (
 	// PostQueueEndpoint is an endpoint pattern that matches POST requests to
 	// /v1/queue to [PostQueueHandler] handler.
 	PostQueueEndpoint = "POST /v1/queue/"
+
+	// GetQueueEndpoint is an endpoint pattern that matches GET requests to
+	// /v1/queue to [GetQueueHandler] handler.
+	GetQueueEndpoint = "GET /v1/queue/"
 )
 
 func init() {
@@ -39,7 +43,7 @@ func init() {
 
 	serviceMux.HandleFunc(HealthEndpoint, HealthHandler)
 
-	// Request handlers for [serviceMux] below start with "/v1/".
+	// Request handlers' endpoints for [serviceMux] below start with "/v1/".
 	//
 	// We could instead create another mux with a handler wrapped in
 	// [http.StripPrefix] to make endpoint patterns shorter, but, since there
@@ -48,4 +52,5 @@ func init() {
 
 	// Submission queue GET/POST handlers.
 	serviceMux.HandleFunc(PostQueueEndpoint, PostQueueHandler)
+	serviceMux.HandleFunc(GetQueueEndpoint, GetQueueHandler)
 }

@@ -77,3 +77,5 @@ func TestReadyHandler(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+// TODO: test [vex.PostQueueHandler], [vex.GetQueueHandler].
