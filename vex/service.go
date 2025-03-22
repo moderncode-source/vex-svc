@@ -19,6 +19,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/rs/zerolog"
 	"golang.org/x/net/netutil"
 )
 
@@ -71,6 +72,7 @@ func (err *ServiceErr) Error() string {
 // Use [New] to create a new valid service instance.
 type Service struct {
 	server *http.Server
+	logger *zerolog.Logger
 }
 
 // New allocates and returns a new [Service] with [http.Server] that will
@@ -80,13 +82,14 @@ type Service struct {
 //
 // To choose your own handler or fall back to [http.DefaultServeMux],
 // use [NewWithHandler].
-func New(addr string) *Service {
+func New(addr string, logger *zerolog.Logger) *Service {
 	return &Service{
 		server: &http.Server{
 			ReadHeaderTimeout: serverReadHeaderTimeout,
 			Addr:              addr,
 			Handler:           ServiceMux,
 		},
+		logger: logger,
 	}
 }
 
@@ -97,13 +100,14 @@ func New(addr string) *Service {
 // If handler is nil, [http.DefaultServeMux] will be used.
 //
 // See also: [New].
-func NewWithHandler(addr string, handler http.Handler) *Service {
+func NewWithHandler(addr string, handler http.Handler, logger *zerolog.Logger) *Service {
 	return &Service{
 		server: &http.Server{
 			ReadHeaderTimeout: serverReadHeaderTimeout,
 			Addr:              addr,
 			Handler:           handler,
 		},
+		logger: logger,
 	}
 }
 
