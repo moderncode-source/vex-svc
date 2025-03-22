@@ -41,10 +41,6 @@ func ReadyHandler(w http.ResponseWriter, req *http.Request) {
 // PostQueueHandler handles requests that
 // post a new item into the submission queue.
 func PostQueueHandler(w http.ResponseWriter, req *http.Request) {
-	if req.Method != http.MethodPost {
-		w.WriteHeader(http.StatusMethodNotAllowed)
-		return
-	}
 
 	// TODO: respect Accept header value.
 	//       Maybe they only want to receive a json response.
@@ -74,10 +70,6 @@ func PostQueueHandler(w http.ResponseWriter, req *http.Request) {
 // GetQueueHandler handles requests to the submission queue
 // endpoint to retrieve information about the queue.
 func GetQueueHandler(w http.ResponseWriter, req *http.Request) {
-	if len(req.Method) != 0 && req.Method != http.MethodGet {
-		w.WriteHeader(http.StatusMethodNotAllowed)
-		return
-	}
 
 	// TODO: respect Accept header value.
 	//       Maybe they only want to receive a json response.
