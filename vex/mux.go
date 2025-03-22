@@ -34,20 +34,3 @@ const (
 	// type to /v1/queue. Used for [GetQueueHandler] and [PostQueueHandler].
 	QueueEndpoint = "/v1/queue/"
 )
-
-func init() {
-	// Register request handlers for the default [serviceMux].
-
-	serviceMux.HandleFunc(HealthEndpoint, HealthHandler)
-
-	// Request handlers' endpoints for [serviceMux] below start with "/v1/".
-	//
-	// We could instead create another mux with a handler wrapped in
-	// [http.StripPrefix] to make endpoint patterns shorter, but, since there
-	// is a small total number of endpoints, it is unnecessary.
-	serviceMux.HandleFunc(ReadyEndpoint, ReadyHandler)
-
-	// Submission queue GET/POST handlers.
-	serviceMux.HandleFunc("POST "+QueueEndpoint, PostQueueHandler)
-	serviceMux.HandleFunc("GET "+QueueEndpoint, GetQueueHandler)
-}
