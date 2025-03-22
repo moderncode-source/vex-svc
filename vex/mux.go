@@ -30,13 +30,9 @@ const (
 	// any type to /v1/sys/ready to [ReadyHandler].
 	ReadyEndpoint = "/v1/sys/ready"
 
-	// PostQueueEndpoint is an endpoint pattern that matches POST requests to
-	// /v1/queue to [PostQueueHandler] handler.
-	PostQueueEndpoint = "POST /v1/queue/"
-
-	// GetQueueEndpoint is an endpoint pattern that matches GET requests to
-	// /v1/queue to [GetQueueHandler] handler.
-	GetQueueEndpoint = "GET /v1/queue/"
+	// QueueEndpoint is an endpoint pattern that matches request of any
+	// type to /v1/queue. Used for [GetQueueHandler] and [PostQueueHandler].
+	QueueEndpoint = "/v1/queue/"
 )
 
 func init() {
@@ -52,6 +48,6 @@ func init() {
 	serviceMux.HandleFunc(ReadyEndpoint, ReadyHandler)
 
 	// Submission queue GET/POST handlers.
-	serviceMux.HandleFunc(PostQueueEndpoint, PostQueueHandler)
-	serviceMux.HandleFunc(GetQueueEndpoint, GetQueueHandler)
+	serviceMux.HandleFunc("POST "+QueueEndpoint, PostQueueHandler)
+	serviceMux.HandleFunc("GET "+QueueEndpoint, GetQueueHandler)
 }
