@@ -9,6 +9,7 @@
 // terms of those licenses.
 
 // Vex HTTP request multiplexer. See [http.ServeMux].
+// Request handlers are registered here.
 
 package vex
 
