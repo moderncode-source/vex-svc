@@ -42,10 +42,10 @@ in the cloud under controlled, isolated environments.
 Documentation is available at https://github.com/moderncode-source/vex-svc`,
 	SilenceUsage: true, // Do not print usage on error.
 	RunE: func(cmd *cobra.Command, _ []string) error {
-		// Get a logger for this command.
-		var debug bool
 		var err error
 
+		// Get a logger for this command.
+		var debug bool
 		cmdLogger := globalCmdLogger
 
 		if debug, err = cmd.Flags().GetBool(verboseFlag); err != nil {
@@ -73,7 +73,24 @@ Documentation is available at https://github.com/moderncode-source/vex-svc`,
 		}
 
 		// Create a new Vex service.
-		svc, err := vex.New(addr, &svcLogger)
+		var svc *vex.Service
+
+		if !debug {
+			// Avoid the overhead of chaining HTTP request
+			// handlers because of the logging middleware.
+			svc, err = vex.New(addr, &svcLogger)
+		} else {
+			// Because [vex.ServiceMux] is a pointer, we can do something like
+			// this below, where we register request handlers after we pass
+			// the final handler to the service.
+			// TODO: put this into a self-contained example.
+			withMiddleware := loggingHTTPMiddleware(&svcLogger)
+			handler := withMiddleware(vex.ServiceMux)
+
+			svc = vex.NewWithHandler(addr, handler, &svcLogger)
+			err = svc.RegisterDefaultHandlers(vex.ServiceMux)
+		}
+
 		if err != nil {
 			cmdLogger.Error().Err(err).Msg("Service creation error")
 			return fmt.Errorf("service creation error: %v", err)
