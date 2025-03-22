@@ -43,8 +43,8 @@ const (
 	serverMaxConnections = 50
 )
 
-// ErrNilServer is returned by [Service.Start] and [Service.Stop] if
-// service's server is nil.
+// ErrNilServer is returned by [Service.Validate], [Service.Start] and
+// [Service.Stop] if service's server is nil.
 var ErrNilServer = errors.New("service's server must not be nil")
 
 // Service defines parameters and provides functionality to run a Vex service.
@@ -87,11 +87,25 @@ func NewWithHandler(addr string, handler http.Handler) *Service {
 	}
 }
 
+// Validate checks whether the service is in a
+// valid state and its parameters are valid.
+func (svc *Service) Validate() error {
+	if svc.server == nil {
+		return ErrNilServer
+	}
+
+	if _, err := net.ResolveTCPAddr("tcp", svc.server.Addr); err != nil {
+		return fmt.Errorf("failed to resolve server addr: %v", err)
+	}
+
+	return nil
+}
+
 // Start begins listening to and serving incoming requests to the service
 // on the configured network address. Call [Service.Stop] to stop serving.
 func (svc *Service) Start() error {
-	if svc.server == nil {
-		return ErrNilServer
+	if err := svc.Validate(); err != nil {
+		return err
 	}
 
 	l, err := net.Listen("tcp", svc.server.Addr)
@@ -111,8 +125,8 @@ func (svc *Service) Start() error {
 
 // Stop gracefully shuts down the service. See [http.Server.Shutdown].
 func (svc *Service) Stop(ctx context.Context) error {
-	if svc.server == nil {
-		return ErrNilServer
+	if err := svc.Validate(); err != nil {
+		return err
 	}
 
 	err := svc.server.Shutdown(ctx)
