@@ -8,7 +8,7 @@
 // option. You may not use this file except in compliance with the
 // terms of those licenses.
 
-// Vex HTTP request handlers.
+// Vex service HTTP request handlers.
 
 package vex
 
@@ -20,7 +20,7 @@ import (
 
 // HealthHandler handles requests to service liveness probe endpoint that can
 // be used to check whether the server is running.
-func HealthHandler(w http.ResponseWriter, req *http.Request) {
+func (svc *Service) HealthHandler(w http.ResponseWriter, req *http.Request) {
 	h := w.Header()
 	h.Set("Content-Type", "text/plain; charset=utf-8")
 	h.Set("X-Content-Type-Options", "nosniff")
@@ -38,7 +38,7 @@ func HealthHandler(w http.ResponseWriter, req *http.Request) {
 
 // ReadyHandler handles requests to service readiness probe endpoint that can
 // be used to check whether the server is ready to receive traffic.
-func ReadyHandler(w http.ResponseWriter, req *http.Request) {
+func (svc *Service) ReadyHandler(w http.ResponseWriter, req *http.Request) {
 	h := w.Header()
 	h.Set("Content-Type", "text/plain; charset=utf-8")
 	h.Set("X-Content-Type-Options", "nosniff")
@@ -56,7 +56,7 @@ func ReadyHandler(w http.ResponseWriter, req *http.Request) {
 
 // PostQueueHandler handles requests that
 // post a new item into the submission queue.
-func PostQueueHandler(w http.ResponseWriter, req *http.Request) {
+func (svc *Service) PostQueueHandler(w http.ResponseWriter, req *http.Request) {
 	h := w.Header()
 	h.Set("Content-Type", "text/plain; charset=utf-8")
 	h.Set("X-Content-Type-Options", "nosniff")
@@ -82,7 +82,7 @@ func PostQueueHandler(w http.ResponseWriter, req *http.Request) {
 	var submission Submission
 	decoder := json.NewDecoder(req.Body)
 	if err := decoder.Decode(&submission); err != nil {
-        // TODO: consider responding with the decoding error message here.
+		// TODO: consider responding with the decoding error message here.
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
@@ -94,7 +94,7 @@ func PostQueueHandler(w http.ResponseWriter, req *http.Request) {
 
 // GetQueueHandler handles requests to the submission queue
 // endpoint to retrieve information about the queue.
-func GetQueueHandler(w http.ResponseWriter, req *http.Request) {
+func (svc *Service) GetQueueHandler(w http.ResponseWriter, req *http.Request) {
 	h := w.Header()
 	h.Set("Content-Type", "text/plain; charset=utf-8")
 	h.Set("X-Content-Type-Options", "nosniff")
