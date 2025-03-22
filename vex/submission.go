@@ -12,6 +12,8 @@
 
 package vex
 
+// TODO: consider renaming this file.
+
 // Submission type represents a code execution request data sent by the client.
 // Submissions are queued and later scheduled to execute.
 // TODO: replace "queue" in the description here with a type reference.
@@ -23,6 +25,9 @@ type Submission struct {
 	// created by the client. Used to monitor and estimate an average total
 	// time it takes to execute a submission with respect to current traffic.
 	// TODO: is this description accurate?
+	// TODO: consider UNIX timestamp: smaller and will be processed faster.
+	//       **OR** do two fields: one for RFC3339 and another for UNIX.
+	//       Then let your service config set what is the preferred one.
 	Timestamp string `json:"timestamp"`
 
 	// TODO: add more fields.
