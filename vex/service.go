@@ -47,6 +47,9 @@ const (
 // [Service.Stop] if service's server is nil.
 var ErrNilServer = errors.New("service's server must not be nil")
 
+// ErrNilLogger is returned by [Service.Validate] if service's logger is nil.
+var ErrNilLogger = errors.New("service's logger must not be nil")
+
 // ServiceErr is the error type returned by [Service] functions.
 type ServiceErr struct {
 	// Msg is a short description of the operation that caused the error.
@@ -116,6 +119,10 @@ func NewWithHandler(addr string, handler http.Handler, logger *zerolog.Logger) *
 func (svc *Service) Validate() error {
 	if svc.server == nil {
 		return ErrNilServer
+	}
+
+	if svc.logger == nil {
+		return ErrNilLogger
 	}
 
 	if _, err := net.ResolveTCPAddr("tcp", svc.server.Addr); err != nil {
