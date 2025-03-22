@@ -18,29 +18,50 @@ import (
 	"net/http"
 )
 
+// TODO: add a Strict-Transport-Security headers to every handler.
+
 // HealthHandler handles requests to service liveness probe endpoint that can
 // be used to check whether the server is running.
 func HealthHandler(w http.ResponseWriter, req *http.Request) {
+	h := w.Header()
+	h.Set("Content-Type", "application/json; charset=utf-8")
+	h.Set("X-Content-Type-Options", "nosniff")
+	h.Set("Cache-Control", "no-store")
+
+
 	if len(req.Method) != 0 && req.Method != http.MethodGet {
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		return
 	}
+
 	w.WriteHeader(http.StatusOK)
 }
 
 // ReadyHandler handles requests to service readiness probe endpoint that can
 // be used to check whether the server is ready to receive traffic.
 func ReadyHandler(w http.ResponseWriter, req *http.Request) {
+	h := w.Header()
+	h.Set("Content-Type", "application/json; charset=utf-8")
+	h.Set("X-Content-Type-Options", "nosniff")
+	h.Set("Cache-Control", "no-store")
+
+
 	if len(req.Method) != 0 && req.Method != http.MethodGet {
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		return
 	}
+
 	w.WriteHeader(http.StatusOK)
 }
 
 // PostQueueHandler handles requests that
 // post a new item into the submission queue.
 func PostQueueHandler(w http.ResponseWriter, req *http.Request) {
+	h := w.Header()
+	h.Set("Content-Type", "application/json; charset=utf-8")
+	h.Set("X-Content-Type-Options", "nosniff")
+	h.Set("X-Frame-Options", "deny")
+	h.Set("Cache-Control", "no-store")
 
 	// TODO: respect Accept header value.
 	//       Maybe they only want to receive a json response.
@@ -70,16 +91,25 @@ func PostQueueHandler(w http.ResponseWriter, req *http.Request) {
 // GetQueueHandler handles requests to the submission queue
 // endpoint to retrieve information about the queue.
 func GetQueueHandler(w http.ResponseWriter, req *http.Request) {
+	h := w.Header()
+	h.Set("Content-Type", "application/json; charset=utf-8")
+	h.Set("X-Content-Type-Options", "nosniff")
+	h.Set("X-Frame-Options", "deny")
+	h.Set("Cache-Control", "no-store")
+
 
 	// TODO: respect Accept header value.
 	//       Maybe they only want to receive a json response.
 
 	// Respond with the total number of submissions in the queue.
 	// TODO: respond with an array of submission ids in the queue instead.
-	if _, err := fmt.Fprint(w, len(queue)); err != nil {
+	if n, err := fmt.Fprint(w, len(queue)); err != nil && n == 0 {
+		h.Del("Content-Length")
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 
+    // TODO: write the status code before writing body into w.
+    //       ignore the error above, only log it.
 	w.WriteHeader(http.StatusOK)
 }
