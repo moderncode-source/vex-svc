@@ -24,14 +24,26 @@ import (
 	"github.com/spf13/cobra"
 )
 
+var (
+	rootVerbose bool
+	rootAddr    string
+	rootLevel   uint
+)
+
+// Log level determines what source to display logs from.
+// Available values are: 0 - silent, 1 - service, 2 - CLI, 3 - service and CLI.
+// Controlled by the command-line argument "level".
 const (
-	verboseFlag = "verbose"
-	addrFlag    = "addr"
+	logLevelSilent = uint(iota)
+	logLevelServiceOnly
+	logLevelCmdOnly
+	logLevelAll
 )
 
 func init() {
-	rootCmd.Flags().BoolP(verboseFlag, "v", false, "run Vex with debug logs")
-	rootCmd.Flags().String(addrFlag, ":8080", "the TCP network address for the Vex server to listen on")
+	rootCmd.Flags().BoolVarP(&rootVerbose, "verbose", "v", false, "run Vex CLI and service with debug logs")
+	rootCmd.Flags().StringVar(&rootAddr, "addr", ":8080", "the TCP network address for the Vex server to listen on")
+	rootCmd.Flags().UintVarP(&rootLevel, "level", "l", 3, "log level. 0 - silent, 1 - service only, 2 - CLI only, 3 - both")
 }
 
 var rootCmd = &cobra.Command{
@@ -41,41 +53,51 @@ var rootCmd = &cobra.Command{
 in the cloud under controlled, isolated environments.
 Documentation is available at https://github.com/moderncode-source/vex-svc`,
 	SilenceUsage: true, // Do not print usage on error.
-	RunE: func(cmd *cobra.Command, _ []string) error {
-		var err error
+	RunE: func(_ *cobra.Command, _ []string) error {
+		// Prepare loggers for this command and the service.
+		cmdLogger := globalCmdNopLogger
+		svcLogger := globalCmdNopLogger
 
-		// Get a logger for this command.
-		var debug bool
-		cmdLogger := globalCmdLogger
-
-		if debug, err = cmd.Flags().GetBool(verboseFlag); err != nil {
-			return fmt.Errorf("could not retrieve %s flag value: %v", verboseFlag, err)
-		} else if !debug {
-			// https://github.com/rs/zerolog/tree/master#leveled-logging
-			cmdLogger = cmdLogger.Level(zerolog.InfoLevel)
-		}
-
-		addr, err := cmd.Flags().GetString(addrFlag)
-		if err != nil {
-			return fmt.Errorf("could not retrieve %s flag value: %v", addrFlag, err)
-		}
-
-		cmdLogger.Info().Msg("Welcome to Vex - a virtual execution micro-service")
-
-		// Create a thread-safe and fast logger for the service.
+		// Service uses a thread-safe, fast logger.
 		w := diode.NewWriter(logOutput, diodeWriterSize, 0, func(missed int) {
 			cmdLogger.Warn().Msgf("Service dropped %d logs", missed)
 		})
 
-		svcLogger := zerolog.New(w)
-		if !debug {
-			svcLogger = svcLogger.Level(zerolog.InfoLevel)
+		// https://github.com/rs/zerolog/tree/master#leveled-logging
+		switch rootLevel {
+		case logLevelSilent:
+		case logLevelServiceOnly:
+			if rootVerbose {
+				svcLogger = zerolog.New(w)
+			} else {
+				svcLogger = zerolog.New(w).Level(zerolog.InfoLevel)
+			}
+		case logLevelCmdOnly:
+			if rootVerbose {
+				cmdLogger = globalCmdLogger
+			} else {
+				cmdLogger = globalCmdLogger.Level(zerolog.InfoLevel)
+			}
+		case logLevelAll:
+			if rootVerbose {
+				svcLogger = zerolog.New(w)
+				cmdLogger = globalCmdLogger
+			} else {
+				svcLogger = zerolog.New(w).Level(zerolog.InfoLevel)
+				cmdLogger = globalCmdLogger.Level(zerolog.InfoLevel)
+			}
+		default:
+			return fmt.Errorf("invalid argument \"%d\" for \"level\" flag", rootLevel)
 		}
+
+		cmdLogger.Info().Msg("Welcome to Vex - a virtual execution micro-service")
 
 		// Create a new Vex service.
 		var svc *vex.Service
+		var err error
+		addr := rootAddr
 
-		if !debug {
+		if !rootVerbose {
 			// Avoid the overhead of chaining HTTP request
 			// handlers because of the logging middleware.
 			svc, err = vex.New(addr, &svcLogger)

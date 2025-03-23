@@ -29,6 +29,7 @@ var logOutput = os.Stderr
 // format. The Vex service itself uses a thread-safe and fast logger instead.
 var (
 	globalCmdLogger = zerolog.New(zerolog.ConsoleWriter{Out: logOutput}).With().Timestamp().Logger()
+	globalCmdNopLogger = zerolog.Nop()
 )
 
 func init() {
