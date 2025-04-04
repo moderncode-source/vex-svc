@@ -13,9 +13,10 @@
 package vex
 
 import (
-	"encoding/json" // TODO: consider using a faster alternative.
 	"fmt"
 	"net/http"
+
+	"github.com/goccy/go-json"
 )
 
 // TODO: add a Strict-Transport-Security headers to every handler.
