@@ -15,7 +15,6 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
-	"sync"
 	"syscall"
 
 	"github.com/moderncode-source/vex-svc/vex"
@@ -129,15 +128,9 @@ Documentation is available at https://github.com/moderncode-source/vex-svc`,
 		// and encapsulate any error it returns.
 		shutdownErr := make(chan error, 1)
 		ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
-
-		var wg sync.WaitGroup
-		defer wg.Wait() // Wait for the go-routine below to exit.
 		defer cancel()
 
-		wg.Add(1)
 		go func() {
-			defer wg.Done()
-
 			<-ctx.Done()
 			cmdLogger.Info().Msg("Shutting down...")
 
@@ -154,6 +147,7 @@ Documentation is available at https://github.com/moderncode-source/vex-svc`,
 			return fmt.Errorf("service start error: %v", err)
 		}
 
+		// Read on `shutdownErr` unblocks when the go-routine above exits.
 		if err := <-shutdownErr; err != nil {
 			cmdLogger.Error().Err(err).Msg("Service shutdown error")
 			return fmt.Errorf("service shutdown error: %v", err)
