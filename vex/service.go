@@ -41,6 +41,11 @@ const (
 	// Coupled together with [serverReadHeaderTimeout] to avoid waiting
 	// indefinitely for clients that never close connections.
 	serverMaxConnections = 50
+
+	// Final submission queue capacity is the total number of submission
+	// execution requests the service can hold at a time. Successive requests
+	// will be rejected, until an executor consumes one from the queue.
+	serverSubmissionQueueCapacity = 16
 )
 
 // ErrNilServer is returned by [Service.Validate], [Service.Start] and
@@ -76,6 +81,10 @@ func (err *ServiceErr) Error() string {
 type Service struct {
 	server *http.Server
 	logger *zerolog.Logger
+
+	// Queue stores [Submission]s - code execution requests passed from HTTP
+	// server request handlers to executors for processing.
+	queue chan Submission
 }
 
 // New allocates and returns a new [Service] with [http.Server] that will
@@ -97,6 +106,7 @@ func New(addr string, logger *zerolog.Logger) (*Service, error) {
 			Handler:           ServiceMux,
 		},
 		logger: logger,
+		queue:  make(chan Submission, serverSubmissionQueueCapacity),
 	}
 
 	if err := svc.RegisterDefaultHandlers(ServiceMux); err != nil {
@@ -121,6 +131,7 @@ func NewWithHandler(addr string, handler http.Handler, logger *zerolog.Logger) *
 			Handler:           handler,
 		},
 		logger: logger,
+		queue:  make(chan Submission, serverSubmissionQueueCapacity),
 	}
 }
 
