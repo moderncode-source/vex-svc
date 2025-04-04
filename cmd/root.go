@@ -75,7 +75,7 @@ Documentation is available at https://github.com/moderncode-source/vex-svc`,
 			// this below, where we register request handlers after we pass
 			// the final handler to the service.
 			// TODO: put this into a self-contained example.
-			withMiddleware := loggingHTTPMiddleware(&svcLogger)
+			withMiddleware := loggingHTTPMiddleware(&cmdLogger)
 			handler := withMiddleware(vex.ServiceMux)
 
 			svc = vex.NewWithHandler(addr, handler, &svcLogger)

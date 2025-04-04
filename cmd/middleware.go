@@ -18,15 +18,37 @@ import (
 	"github.com/rs/zerolog"
 )
 
+// verboseResponseWriter is a verbose wrapper around [http.ResponseWriter].
+type verboseResponseWriter struct {
+	http.ResponseWriter
+
+	// statusCode exposes the status code written by the request handler.
+	statusCode int
+}
+
+// WriteHeader wraps [http.ResponseWriter]'s WriteHeader function.
+func (w *verboseResponseWriter) WriteHeader(statusCode int) {
+	w.statusCode = statusCode
+	w.ResponseWriter.WriteHeader(statusCode)
+}
+
+// loggingHTTPMiddleware logs incoming requests to HTTP handlers and their
+// responses. Usage example:
+//
+//	withMiddleware := loggingHTTPMiddleware(&logger)
+//	newHandler := withMiddleware(handler)
 func loggingHTTPMiddleware(logger *zerolog.Logger) func(http.Handler) http.Handler {
 	return func(handler http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			verboseWriter := verboseResponseWriter{ResponseWriter: w}
+			handler.ServeHTTP(&verboseWriter, r)
+
 			logger.Debug().
 				Str("remoteaddr", r.RemoteAddr).
 				Str("method", r.Method).
 				Str("path", r.URL.Path).
-				Msg("request")
-			handler.ServeHTTP(w, r)
+				Int("status", verboseWriter.statusCode).
+				Msg("Request")
 		})
 	}
 }
