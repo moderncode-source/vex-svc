@@ -13,7 +13,6 @@
 package vex
 
 import (
-	"fmt"
 	"net/http"
 
 	"github.com/goccy/go-json"
@@ -32,6 +31,7 @@ func init() {
 }
 
 // TODO: add a Strict-Transport-Security headers to every handler.
+// TODO (MAIN-107): reuse JSON buffers using [sync.Pool].
 
 // HealthHandler handles requests to service liveness probe endpoint that can
 // be used to check whether the server is running.
@@ -47,7 +47,7 @@ func (svc *Service) HealthHandler(w http.ResponseWriter, _ *http.Request) {
 		svc.logger.Err(err).
 			Int("status", http.StatusOK).
 			Msg("HealthHandler JSON encoder error")
-	    }
+	}
 }
 
 // ReadyHandler handles requests to service readiness probe endpoint that can
@@ -64,7 +64,7 @@ func (svc *Service) ReadyHandler(w http.ResponseWriter, _ *http.Request) {
 		svc.logger.Err(err).
 			Int("status", http.StatusOK).
 			Msg("ReadyHandler JSON encoder error")
-	    }
+	}
 }
 
 // PostQueueHandler handles requests that
@@ -76,53 +76,85 @@ func (svc *Service) PostQueueHandler(w http.ResponseWriter, req *http.Request) {
 	h.Set("X-Frame-Options", "deny")
 	h.Set("Cache-Control", "no-store")
 
-	// TODO: respect Accept header value.
-	//       Maybe they only want to receive a json response.
+	var reply httpReply
 
-	// TODO: be more lenient here. Assume json if content-type is not set,
-	//       accept "application/json; charset=utf-8", and try to decode
-	//       "text/plain" into [Submission] too.
-	if req.Header.Get("Content-Type") != "application/json" {
-		w.WriteHeader(http.StatusUnsupportedMediaType)
+	defer func() {
+		w.WriteHeader(reply.Status)
+
+		e := json.NewEncoder(w)
+		if err := e.Encode(reply); err != nil {
+			svc.logger.Err(err).
+				Int("status", reply.Status).
+				Msg("PostQueueHandler JSON encoder error")
+		}
+	}()
+
+	// Validate client's body content-type.
+	// If it is not set (empty), assume "application/json".
+	switch req.Header.Get("Content-Type") {
+	case "", "application/json", "application/json; charset=utf-8":
+	default:
+		reply = httpReply{
+			Message: "Unsupported 'Content-Type' header. Supported is 'application/json'",
+			Status:  http.StatusUnsupportedMediaType,
+		}
 		return
 	}
 
 	// Decode request body into a [Submission].
 	var submission Submission
-	decoder := json.NewDecoder(req.Body)
-	if err := decoder.Decode(&submission); err != nil {
-		// TODO: consider responding with the decoding error message here.
-		w.WriteHeader(http.StatusBadRequest)
+	d := json.NewDecoder(req.Body)
+
+	if err := d.Decode(&submission); err != nil || !submission.Validate() {
+		// Failed to decode due to a bad request body
+		// or submission is in invalid state. Reply to the client.
+		reply = httpReply{
+			Message: "Bad request body",
+			Status:  http.StatusBadRequest,
+		}
 		return
 	}
 
-	// TODO: replace queue with a proper construct.
-	queue = append(queue, submission)
-	w.WriteHeader(http.StatusOK)
+	// Insert submission into the queue if it is not full.
+	// Inform the client otherwise.
+	select {
+	case svc.queue <- submission:
+		reply = httpReply{
+			Message: "Submission successfully posted",
+			Status:  http.StatusOK,
+		}
+	default:
+		reply = httpReply{
+			Message: "Submission queue is full. Retry later",
+			Status:  http.StatusInsufficientStorage,
+		}
+	}
 }
 
 // GetQueueHandler handles requests to the submission queue
 // endpoint to retrieve information about the queue.
-func (svc *Service) GetQueueHandler(w http.ResponseWriter, req *http.Request) {
+func (svc *Service) GetQueueHandler(w http.ResponseWriter, _ *http.Request) {
 	h := w.Header()
 	h.Set("Content-Type", "application/json; charset=utf-8")
 	h.Set("X-Content-Type-Options", "nosniff")
 	h.Set("X-Frame-Options", "deny")
 	h.Set("Cache-Control", "no-store")
 
+	// Respond with the total number of submissions in the queue
+	// and whether the queue is full.
 
-	// TODO: respect Accept header value.
-	//       Maybe they only want to receive a json response.
+	length := len(svc.queue)
+	reply := struct {
+		Length int  `json:"length"`
+		Full   bool `json:"full"`
+	}{Length: length, Full: length == cap(svc.queue)}
 
-	// Respond with the total number of submissions in the queue.
-	// TODO: respond with an array of submission ids in the queue instead.
-	if n, err := fmt.Fprint(w, len(queue)); err != nil && n == 0 {
-		h.Del("Content-Length")
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	}
-
-    // TODO: write the status code before writing body into w.
-    //       ignore the error above, only log it.
 	w.WriteHeader(http.StatusOK)
+
+	e := json.NewEncoder(w)
+	if err := e.Encode(reply); err != nil {
+		svc.logger.Err(err).
+			Int("status", http.StatusOK).
+			Msg("GetQueueHandler JSON encoder error")
+	}
 }

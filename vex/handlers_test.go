@@ -13,6 +13,7 @@
 package vex_test
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"net/http"
@@ -20,6 +21,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/goccy/go-json"
 	"github.com/moderncode-source/vex-svc/vex"
 )
 
@@ -71,4 +73,126 @@ func TestHealthAndReadyHandlers(t *testing.T) {
 	}
 }
 
-// TODO: test [vex.PostQueueHandler], [vex.GetQueueHandler].
+func TestGetAndPostQueueHandler(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+
+	url := mockURL + vex.QueueEndpoint
+
+	{
+		t.Logf("Testing request to POST %s (empty body)", url)
+		res := httptest.NewRecorder()
+		req := httptest.NewRequestWithContext(ctx, http.MethodPost, url, nil)
+		req.Header.Set("Content-Type", "application/json")
+
+		mockService.PostQueueHandler(res, req)
+		if want := http.StatusBadRequest; res.Code != want {
+			t.Fatalf("Expected response code %d, got %d", want, res.Code)
+		}
+	}
+
+	{
+		t.Logf("Testing request to POST %s (invalid body)", url)
+
+		buff := bytes.NewBufferString("{}")
+
+		res := httptest.NewRecorder()
+		req := httptest.NewRequestWithContext(ctx, http.MethodPost, url, buff)
+		req.Header.Set("Content-Type", "application/json")
+
+		mockService.PostQueueHandler(res, req)
+		if want := http.StatusOK; res.Code != want {
+			t.Fatalf("Expected response code %d, got %d", want, res.Code)
+		}
+	}
+
+	{
+		t.Logf("Testing request to POST %s (invalid content-type)", url)
+
+		buff := bytes.NewBufferString("{}")
+
+		res := httptest.NewRecorder()
+		req := httptest.NewRequestWithContext(ctx, http.MethodPost, url, buff)
+		req.Header.Set("Content-Type", "text/plain")
+
+		mockService.PostQueueHandler(res, req)
+		if want := http.StatusUnsupportedMediaType; res.Code != want {
+			t.Fatalf("Expected response code %d, got %d", want, res.Code)
+		}
+	}
+
+	t.Logf("Testing requests to GET&POST %s (valid body)...", url)
+
+	for i := 0; ; i++ {
+		// End the loop if the queue got full. We are not testing
+		// submission processing here, just the handler response.
+		res := httptest.NewRecorder()
+		req := httptest.NewRequestWithContext(ctx, http.MethodPost, url, nil)
+
+		mockService.GetQueueHandler(res, req)
+		if want := http.StatusOK; res.Code != want {
+			t.Fatalf("Expected response code %d, got %d", want, res.Code)
+		}
+
+		queueResp := struct {
+			Length int  `json:"length"`
+			Full   bool `json:"full"`
+		}{}
+
+		d := json.NewDecoder(res.Body)
+		if err := d.Decode(&queueResp); err != nil {
+			t.Fatalf("Failed to decode response, err: %s", err)
+		}
+
+		if queueResp.Full {
+			break
+		}
+
+		// Post a valid submission.
+		w := &bytes.Buffer{}
+
+		submission := vex.Submission{
+			ID:        int64(i + 1),
+			Timestamp: vex.TimeUnix{time.Now()},
+		}
+
+		e := json.NewEncoder(w)
+		if err := e.Encode(submission); err != nil {
+			t.Fatalf("Failed to encode submission, err: %s", err)
+		}
+
+		res = httptest.NewRecorder()
+		req = httptest.NewRequestWithContext(ctx, http.MethodPost, url, w)
+
+		mockService.PostQueueHandler(res, req)
+		if want := http.StatusOK; res.Code != want {
+			t.Fatalf("Expected response code %d, got %d", want, res.Code)
+		}
+	}
+
+	{
+		// Post the last valid submission while the queue is full (hopefully).
+		// We should get informed that the queue is indeed full.
+
+		t.Logf("Testing request to POST %s (valid body, q is full)", url)
+		w := &bytes.Buffer{}
+
+		submission := vex.Submission{
+			ID:        int64(-1),
+			Timestamp: vex.TimeUnix{time.Now()},
+		}
+
+		e := json.NewEncoder(w)
+		if err := e.Encode(submission); err != nil {
+			t.Fatalf("Failed to encode submission, err: %s", err)
+		}
+
+		res := httptest.NewRecorder()
+		req := httptest.NewRequestWithContext(ctx, http.MethodPost, url, w)
+
+		mockService.PostQueueHandler(res, req)
+		if want := http.StatusInsufficientStorage; res.Code != want {
+			t.Fatalf("Expected response code %d, got %d", want, res.Code)
+		}
+	}
+}
