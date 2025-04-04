@@ -24,33 +24,23 @@ import (
 )
 
 var (
-	rootVerbose bool
-	rootAddr    string
-	rootLevel   uint
-)
-
-// Log level determines what source to display logs from.
-// Available values are: 0 - silent, 1 - service, 2 - CLI, 3 - service and CLI.
-// Controlled by the command-line argument "level".
-const (
-	logLevelSilent = uint(iota)
-	logLevelServiceOnly
-	logLevelCmdOnly
-	logLevelAll
+	verbose bool
+	addr    string
 )
 
 func init() {
-	rootCmd.Flags().BoolVarP(&rootVerbose, "verbose", "v", false, "run Vex CLI and service with debug logs")
-	rootCmd.Flags().StringVar(&rootAddr, "addr", ":8080", "the TCP network address for the Vex server to listen on")
-	rootCmd.Flags().UintVarP(&rootLevel, "level", "l", 3, "log level. 0 - silent, 1 - service only, 2 - CLI only, 3 - both")
+	rootCmd.PersistentFlags().BoolVarP(&verbose, "verbose", "v", false, "enable debug logs")
+	rootCmd.Flags().StringVar(&addr, "addr", ":8080", "the TCP network address for the Vex server to listen on")
 }
 
 var rootCmd = &cobra.Command{
-	Use:   "vex",
+	Use: "vex",
+
 	Short: "Run arbitrary code under isolated environments",
 	Long: `Vex is a virtual execution micro-service that runs arbitrary code
 in the cloud under controlled, isolated environments.
 Documentation is available at https://github.com/moderncode-source/vex-svc`,
+
 	SilenceUsage: true, // Do not print usage on error.
 	RunE: func(_ *cobra.Command, _ []string) error {
 		// Prepare loggers for this command and the service.
@@ -62,31 +52,12 @@ Documentation is available at https://github.com/moderncode-source/vex-svc`,
 			cmdLogger.Warn().Msgf("Service dropped %d logs", missed)
 		})
 
-		// https://github.com/rs/zerolog/tree/master#leveled-logging
-		switch rootLevel {
-		case logLevelSilent:
-		case logLevelServiceOnly:
-			if rootVerbose {
-				svcLogger = zerolog.New(w)
-			} else {
-				svcLogger = zerolog.New(w).Level(zerolog.InfoLevel)
-			}
-		case logLevelCmdOnly:
-			if rootVerbose {
-				cmdLogger = globalCmdLogger
-			} else {
-				cmdLogger = globalCmdLogger.Level(zerolog.InfoLevel)
-			}
-		case logLevelAll:
-			if rootVerbose {
-				svcLogger = zerolog.New(w)
-				cmdLogger = globalCmdLogger
-			} else {
-				svcLogger = zerolog.New(w).Level(zerolog.InfoLevel)
-				cmdLogger = globalCmdLogger.Level(zerolog.InfoLevel)
-			}
-		default:
-			return fmt.Errorf("invalid argument \"%d\" for \"level\" flag", rootLevel)
+		if verbose {
+			svcLogger = zerolog.New(w)
+			cmdLogger = globalCmdLogger
+		} else {
+			svcLogger = zerolog.New(w).Level(zerolog.InfoLevel)
+			cmdLogger = globalCmdLogger.Level(zerolog.InfoLevel)
 		}
 
 		cmdLogger.Info().Msg("Welcome to Vex - a virtual execution micro-service")
@@ -94,9 +65,8 @@ Documentation is available at https://github.com/moderncode-source/vex-svc`,
 		// Create a new Vex service.
 		var svc *vex.Service
 		var err error
-		addr := rootAddr
 
-		if !rootVerbose {
+		if !verbose {
 			// Avoid the overhead of chaining HTTP request
 			// handlers because of the logging middleware.
 			svc, err = vex.New(addr, &svcLogger)
@@ -159,7 +129,7 @@ Documentation is available at https://github.com/moderncode-source/vex-svc`,
 	},
 }
 
-// Execute matches ands runs the appropriate CLI command.
+// Execute matches and runs the appropriate CLI command.
 func Execute() error {
 	if err := rootCmd.Execute(); err != nil {
 		return fmt.Errorf("vex CLI exited with error: %s", err)
