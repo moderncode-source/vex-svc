@@ -117,10 +117,11 @@ func (svc *Service) Start() error {
 	ln := netutil.LimitListener(l, serverMaxConnections)
 
 	err = svc.server.Serve(ln)
-	if err == nil || err == http.ErrServerClosed {
-		return nil
+	if err != nil {
+		return fmt.Errorf("failed to serve service: %v", err)
 	}
-	return fmt.Errorf("failed to serve service: %v", err)
+
+	return nil
 }
 
 // Stop gracefully shuts down the service. See [http.Server.Shutdown].
@@ -130,8 +131,9 @@ func (svc *Service) Stop(ctx context.Context) error {
 	}
 
 	err := svc.server.Shutdown(ctx)
-	if err == nil || err == http.ErrServerClosed {
-		return nil
+	if err != nil {
+		return fmt.Errorf("failed to stop service: %v", err)
 	}
-	return fmt.Errorf("failed to stop service: %v", err)
+
+	return nil
 }
