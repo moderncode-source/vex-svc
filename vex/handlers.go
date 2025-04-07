@@ -23,34 +23,22 @@ import (
 
 // HealthHandler handles requests to service liveness probe endpoint that can
 // be used to check whether the server is running.
-func (svc *Service) HealthHandler(w http.ResponseWriter, req *http.Request) {
+func (svc *Service) HealthHandler(w http.ResponseWriter, _ *http.Request) {
 	h := w.Header()
 	h.Set("Content-Type", "application/json; charset=utf-8")
 	h.Set("X-Content-Type-Options", "nosniff")
 	h.Set("Cache-Control", "no-store")
-
-
-	if len(req.Method) != 0 && req.Method != http.MethodGet {
-		w.WriteHeader(http.StatusMethodNotAllowed)
-		return
-	}
 
 	w.WriteHeader(http.StatusOK)
 }
 
 // ReadyHandler handles requests to service readiness probe endpoint that can
 // be used to check whether the server is ready to receive traffic.
-func (svc *Service) ReadyHandler(w http.ResponseWriter, req *http.Request) {
+func (svc *Service) ReadyHandler(w http.ResponseWriter, _ *http.Request) {
 	h := w.Header()
 	h.Set("Content-Type", "application/json; charset=utf-8")
 	h.Set("X-Content-Type-Options", "nosniff")
 	h.Set("Cache-Control", "no-store")
-
-
-	if len(req.Method) != 0 && req.Method != http.MethodGet {
-		w.WriteHeader(http.StatusMethodNotAllowed)
-		return
-	}
 
 	w.WriteHeader(http.StatusOK)
 }

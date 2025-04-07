@@ -18,6 +18,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/moderncode-source/vex-svc/vex"
 )
@@ -43,7 +44,8 @@ func checkHandlerResponseCode(
 }
 
 func TestHealthAndReadyHandlers(t *testing.T) {
-	ctx := context.Background()
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
 
 	tests := []struct {
 		ctx         context.Context
@@ -52,10 +54,8 @@ func TestHealthAndReadyHandlers(t *testing.T) {
 		method, url string
 	}{
 		{ctx, http.HandlerFunc(mockService.HealthHandler), http.StatusOK, http.MethodGet, mockURL + vex.HealthEndpoint},
-		{ctx, http.HandlerFunc(mockService.HealthHandler), http.StatusMethodNotAllowed, http.MethodPost, mockURL + vex.HealthEndpoint},
 
 		{ctx, http.HandlerFunc(mockService.ReadyHandler), http.StatusOK, http.MethodGet, mockURL + vex.ReadyEndpoint},
-		{ctx, http.HandlerFunc(mockService.ReadyHandler), http.StatusMethodNotAllowed, http.MethodPost, mockURL + vex.ReadyEndpoint},
 	}
 
 	for _, tt := range tests {

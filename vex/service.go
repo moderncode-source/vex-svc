@@ -153,14 +153,14 @@ func (svc *Service) RegisterDefaultHandlers(mux *http.ServeMux) (err error) {
 		}
 	}()
 
-	mux.HandleFunc(HealthEndpoint, svc.HealthHandler)
+	mux.HandleFunc("GET "+HealthEndpoint, svc.HealthHandler)
 
 	// Request handlers' endpoints for the mux below start with "/v1/".
 	//
 	// We could instead create another mux with a handler wrapped in
 	// [http.StripPrefix] to make endpoint patterns shorter, but, since there
 	// is a small total number of endpoints, it is unnecessary.
-	mux.HandleFunc(ReadyEndpoint, svc.ReadyHandler)
+	mux.HandleFunc("GET "+ReadyEndpoint, svc.ReadyHandler)
 
 	// Submission queue GET/POST handlers.
 	mux.HandleFunc("POST "+QueueEndpoint, svc.PostQueueHandler)
