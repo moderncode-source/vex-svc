@@ -19,6 +19,11 @@ import (
 	"unsafe"
 )
 
+type httpReply struct {
+	Message string `json:"message"`
+	Status  int    `json:"status,string"`
+}
+
 // TimeUnix represents an instant in time. It wraps [time.Time], and
 // marshals into and unmarshals from a Unix time encoding of a JSON value.
 type TimeUnix struct {

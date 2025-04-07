@@ -19,6 +19,18 @@ import (
 	"github.com/goccy/go-json"
 )
 
+var okReply []byte
+
+func init() {
+	// Pre-encode a short "ok" HTTP response body for
+	// request handlers that may need it often.
+	b, err := json.Marshal(httpReply{Message: "ok", Status: http.StatusOK})
+	if err != nil {
+		panic(err)
+	}
+	okReply = b
+}
+
 // TODO: add a Strict-Transport-Security headers to every handler.
 
 // HealthHandler handles requests to service liveness probe endpoint that can
@@ -30,6 +42,12 @@ func (svc *Service) HealthHandler(w http.ResponseWriter, _ *http.Request) {
 	h.Set("Cache-Control", "no-store")
 
 	w.WriteHeader(http.StatusOK)
+
+	if _, err := w.Write(okReply); err != nil {
+		svc.logger.Err(err).
+			Int("status", http.StatusOK).
+			Msg("HealthHandler JSON encoder error")
+	    }
 }
 
 // ReadyHandler handles requests to service readiness probe endpoint that can
@@ -41,6 +59,12 @@ func (svc *Service) ReadyHandler(w http.ResponseWriter, _ *http.Request) {
 	h.Set("Cache-Control", "no-store")
 
 	w.WriteHeader(http.StatusOK)
+
+	if _, err := w.Write(okReply); err != nil {
+		svc.logger.Err(err).
+			Int("status", http.StatusOK).
+			Msg("ReadyHandler JSON encoder error")
+	    }
 }
 
 // PostQueueHandler handles requests that
