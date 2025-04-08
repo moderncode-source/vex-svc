@@ -15,7 +15,6 @@ package vex
 import (
 	"context"
 	"errors"
-	"fmt"
 	"net"
 	"net/http"
 	"time"
@@ -46,6 +45,27 @@ const (
 // ErrNilServer is returned by [Service.Validate], [Service.Start] and
 // [Service.Stop] if service's server is nil.
 var ErrNilServer = errors.New("service's server must not be nil")
+
+// ServiceErr is the error type returned by [Service] functions.
+type ServiceErr struct {
+	// Msg is a short description of the operation that caused the error.
+	Msg string
+	// Err is the error that occurred during the operation.
+	Err error
+}
+
+func (err *ServiceErr) Unwrap() error { return err.Err }
+
+func (err *ServiceErr) Error() string {
+	switch {
+	case err == nil:
+		return "<nil>"
+	case err.Err == nil:
+		return err.Msg + ": <nil>"
+	default:
+		return err.Msg + ": " + err.Err.Error()
+	}
+}
 
 // Service defines parameters and provides functionality to run a Vex service.
 // Use [New] to create a new valid service instance.
@@ -95,7 +115,7 @@ func (svc *Service) Validate() error {
 	}
 
 	if _, err := net.ResolveTCPAddr("tcp", svc.server.Addr); err != nil {
-		return fmt.Errorf("failed to resolve server addr: %v", err)
+		return &ServiceErr{Msg: "failed to resolve server addr", Err: err}
 	}
 
 	return nil
@@ -105,12 +125,12 @@ func (svc *Service) Validate() error {
 // on the configured network address. Call [Service.Stop] to stop serving.
 func (svc *Service) Start() error {
 	if err := svc.Validate(); err != nil {
-		return err
+		return &ServiceErr{Msg: "validation failed", Err: err}
 	}
 
 	l, err := net.Listen("tcp", svc.server.Addr)
 	if err != nil {
-		return fmt.Errorf("failed to start service: %v", err)
+		return &ServiceErr{Msg: "failed to listen on addr", Err: err}
 	}
 
 	// Limit the number of concurrent connections to the service.
@@ -118,7 +138,7 @@ func (svc *Service) Start() error {
 
 	err = svc.server.Serve(ln)
 	if err != nil {
-		return fmt.Errorf("failed to serve service: %v", err)
+		return &ServiceErr{Msg: "serve exited with error", Err: err}
 	}
 
 	return nil
@@ -127,12 +147,12 @@ func (svc *Service) Start() error {
 // Stop gracefully shuts down the service. See [http.Server.Shutdown].
 func (svc *Service) Stop(ctx context.Context) error {
 	if err := svc.Validate(); err != nil {
-		return err
+		return &ServiceErr{Msg: "validation failed", Err: err}
 	}
 
 	err := svc.server.Shutdown(ctx)
 	if err != nil {
-		return fmt.Errorf("failed to stop service: %v", err)
+		return &ServiceErr{Msg: "server shutdown exited with error", Err: err}
 	}
 
 	return nil

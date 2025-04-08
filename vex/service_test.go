@@ -14,6 +14,7 @@ package vex_test
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"sync"
 	"testing"
@@ -34,7 +35,7 @@ func TestNew(t *testing.T) {
 	defer cancel()
 
 	defer func() {
-		if err := svc.Stop(ctx); err != nil {
+		if err := svc.Stop(ctx); err != nil && errors.Unwrap(err) != nil {
 			t.Logf("Failed to stop service: %s", err)
 		}
 		wg.Wait()
@@ -42,7 +43,7 @@ func TestNew(t *testing.T) {
 
 	wg.Add(1)
 	go func() {
-		if err := svc.Start(); err != nil {
+		if err := svc.Start(); err != nil && errors.Unwrap(err) != http.ErrServerClosed {
 			t.Logf("Server exited with error: %s", err)
 		}
 		wg.Done()
