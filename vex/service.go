@@ -1,0 +1,159 @@
+// SPDX-FileCopyrightText: 2025 The Vex Authors.
+//
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+//
+// Licensed under the Apache License, Version 2.0 <LICENSE-APACHE or
+// http://www.apache.org/licenses/LICENSE-2.0> or the MIT license
+// <LICENSE-MIT or http://opensource.org/licenses/MIT>, at your
+// option. You may not use this file except in compliance with the
+// terms of those licenses.
+
+// Vex service.
+
+package vex
+
+import (
+	"context"
+	"errors"
+	"net"
+	"net/http"
+	"time"
+
+	"golang.org/x/net/netutil"
+)
+
+// Vex major, minor, and patch version numbers.
+const (
+	VersionMajor = 0
+	VersionMinor = 0
+	VersionPatch = 1
+)
+
+const (
+	// Block clients from keeping connections open forever by setting a
+	// deadline for reading request headers (effectively, connection's read
+	// deadline, see [http.Server]).
+	serverReadHeaderTimeout = 10 * time.Second
+
+	// Maximum concurrent TCP connections that a server can accept.
+	// We calculate it as: anticipated Request Rate * Request Duration.
+	// Coupled together with [serverReadHeaderTimeout] to avoid waiting
+	// indefinitely for clients that never close connections.
+	serverMaxConnections = 50
+)
+
+// ErrNilServer is returned by [Service.Validate], [Service.Start] and
+// [Service.Stop] if service's server is nil.
+var ErrNilServer = errors.New("service's server must not be nil")
+
+// ServiceErr is the error type returned by [Service] functions.
+type ServiceErr struct {
+	// Msg is a short description of the operation that caused the error.
+	Msg string
+	// Err is the error that occurred during the operation.
+	Err error
+}
+
+func (err *ServiceErr) Unwrap() error { return err.Err }
+
+func (err *ServiceErr) Error() string {
+	switch {
+	case err == nil:
+		return "<nil>"
+	case err.Err == nil:
+		return err.Msg + ": <nil>"
+	default:
+		return err.Msg + ": " + err.Err.Error()
+	}
+}
+
+// Service defines parameters and provides functionality to run a Vex service.
+// Use [New] to create a new valid service instance.
+type Service struct {
+	server *http.Server
+}
+
+// New allocates and returns a new [Service] with [http.Server] that will
+// listen on TCP network address addr and handle requests on incoming
+// connections using [ServiceMux] handler. This is the recommended and default
+// way to create a Vex service.
+//
+// To choose your own handler or fall back to [http.DefaultServeMux],
+// use [NewWithHandler].
+func New(addr string) *Service {
+	return &Service{
+		server: &http.Server{
+			ReadHeaderTimeout: serverReadHeaderTimeout,
+			Addr:              addr,
+			Handler:           ServiceMux,
+		},
+	}
+}
+
+// NewWithHandler allocates and returns a new [Service] with [http.Server]
+// that will listen on TCP network address addr and handle requests on
+// incoming connections by calling [http.Server.Serve] with handler.
+//
+// If handler is nil, [http.DefaultServeMux] will be used.
+//
+// See also: [New].
+func NewWithHandler(addr string, handler http.Handler) *Service {
+	return &Service{
+		server: &http.Server{
+			ReadHeaderTimeout: serverReadHeaderTimeout,
+			Addr:              addr,
+			Handler:           handler,
+		},
+	}
+}
+
+// Validate checks whether the service is in a
+// valid state and its parameters are valid.
+func (svc *Service) Validate() error {
+	if svc.server == nil {
+		return ErrNilServer
+	}
+
+	if _, err := net.ResolveTCPAddr("tcp", svc.server.Addr); err != nil {
+		return &ServiceErr{Msg: "failed to resolve server addr", Err: err}
+	}
+
+	return nil
+}
+
+// Start begins listening to and serving incoming requests to the service
+// on the configured network address. Call [Service.Stop] to stop serving.
+func (svc *Service) Start() error {
+	if err := svc.Validate(); err != nil {
+		return &ServiceErr{Msg: "validation failed", Err: err}
+	}
+
+	l, err := net.Listen("tcp", svc.server.Addr)
+	if err != nil {
+		return &ServiceErr{Msg: "failed to listen on addr", Err: err}
+	}
+
+	// Limit the number of concurrent connections to the service.
+	ln := netutil.LimitListener(l, serverMaxConnections)
+
+	err = svc.server.Serve(ln)
+	if err != nil {
+		return &ServiceErr{Msg: "serve exited with error", Err: err}
+	}
+
+	return nil
+}
+
+// Stop gracefully shuts down the service. See [http.Server.Shutdown].
+func (svc *Service) Stop(ctx context.Context) error {
+	if err := svc.Validate(); err != nil {
+		return &ServiceErr{Msg: "validation failed", Err: err}
+	}
+
+	err := svc.server.Shutdown(ctx)
+	if err != nil {
+		return &ServiceErr{Msg: "server shutdown exited with error", Err: err}
+	}
+
+	return nil
+}
